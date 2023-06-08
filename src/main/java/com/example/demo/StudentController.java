@@ -1,5 +1,6 @@
 package com.example.demo;
 
+import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -8,65 +9,61 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.SessionAttributes;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Controller
 @RequestMapping("students")
-@SessionAttributes("students/selectedDepartment")
 public class StudentController {
-	@Autowired
-	private StudentService studentService;
-	
-	@GetMapping("add")
-	public String add(Model model) {
-		model.addAttribute(new Student());
-		return "form.html";
-	}
+  @Autowired
+  private StudentService studentService;
 
-	@PostMapping("add")
-	public String add(
-		@ModelAttribute("student") @Valid Student student,
-		BindingResult bindingResult,
-		Model model,
-		@ModelAttribute("department") String select
-	) {
-		if(bindingResult.hasErrors()) {
-			return "form/html";
-		}
-		if(studentService.get(student.getId()) == null) {
-			bindingResult.rejectValue("id", "duplicate id");
-		}
-		
-		studentService.save(student);
-		return "form.html";
-	}
-	
-	@PostMapping("/reset")
-    public String reset(Model model) {
-        model.addAttribute("student", new Student());
-        return "form.html";
-    }
-	@ModelAttribute("selectedDepartment")
-    public String getSelectedDepartment(HttpServletRequest request) {
-        HttpSession session = request.getSession();
-        String selectedDepartment = (String) session.getAttribute("selectedDepartment");
-        if (selectedDepartment == null) {
-            selectedDepartment = "Department A";
-        }
-        return selectedDepartment;
+  @GetMapping("add")
+  public String add(Model model) {
+
+    model.addAttribute("student", new Student());
+    model.addAttribute("departments", getDepartments());
+
+    return "form";
+  }
+
+  @PostMapping("add")
+  public String add(
+        @ModelAttribute("student") @Valid Student student,
+        BindingResult bindingResult,
+        Model model,
+        HttpSession session
+  ) {
+
+    if (bindingResult.hasErrors()) {
+      model.addAttribute("departments", getDepartments());
+      return "form";
     }
 
-    @PostMapping("/department")
-    public String selectDepartment(@RequestParam("department") String selectedDepartment,
-                                    HttpServletRequest request) {
-        HttpSession session = request.getSession();
-        session.setAttribute("selectedDepartment", selectedDepartment);
-        return "redirect:/";
+    if (studentService.get(student.getId()) != null) {
+      bindingResult.rejectValue("id", "error.student", "Student ID already exists");
+      model.addAttribute("departments", getDepartments());
+      return "form";
     }
+
+    if (studentService.get(student.getId()) != null) {
+      bindingResult.rejectValue("id", "duplicate id", "duplicate id");
+    }
+
+    System.out.println(student);
+    studentService.save(student);
+
+    model.addAttribute("departments", getDepartments());
+    session.setAttribute("selectedDepartment", student.getDepartment());
+
+    return "redirect:/students/add";
+  }
+
+  private List<String> getDepartments() {
+    return Arrays.asList("Department 1", "Department 2", "Department 3");
+  }
 }
 
